@@ -1,4 +1,4 @@
-# SMARTCal
+# App: SMARTCal
 
 def calculate_bmr(weight, height, age, sex):
     """
@@ -50,12 +50,7 @@ def suggest_meals(calories):
     Returns:
         list: A list of 3 meals as examples
     """
-    if calories < 1800:
-        return ["Grilled chicken salad", "Veggie stir-fry", "Fruit smoothie"]
-    elif calories < 2500:
-        return ["Rice with beans", "Turkey sandwich", "Baked salmon with veggies"]
-    else:
-        return ["Pasta with meat sauce", "Chicken burrito bowl", "Beef stew with bread"]
+    
 # main.py
 
 from calorie_calc import calculate_bmr, calculate_tdee
