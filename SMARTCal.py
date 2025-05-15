@@ -1,86 +1,116 @@
-# App: SMARTCal
+import tkinter as tk
+from tkinter import messagebox, scrolledtext
+import tkinter.ttk as ttk
+from calorie_calc import CalorieCalculator
+from meal_ideas import MealSuggester
+import json
+from datetime import datetime
 
-def calculate_bmr(weight, height, age, sex):
-    """
-    Calculates the user's BMR (Basal Metabolic Rate).
-    
-    BMR tells how many calories your body uses when resting.
+def generate_plan():
+    try:
+        weight = float(entry_weight.get())
+        height = float(entry_height.get())
+        age = int(entry_age.get())
+        sex = sex_var.get()
+        activity = activity_var.get()
 
-    Args:
-        weight (float): Weight in kilograms
-        height (float): Height in centimeters
-        age (int): Age in years
-        sex (str): 'male' or 'female'
+        if not sex:
+            raise ValueError("Please select a sex.")
 
-    Returns:
-        float: The BMR value
-    """
-    if sex == 'male':
-        return 10 * weight + 6.25 * height - 5 * age + 5
-    else:
-        return 10 * weight + 6.25 * height - 5 * age - 161
+        if activity not in ("low", "medium", "high"):
+            raise ValueError("Please select an activity level.")
 
+        calc = CalorieCalculator(weight, height, age, sex, activity)
+        tdee = calc.calculate_tdee()
 
-def calculate_tdee(bmr, activity_level):
-    """
-    Adjusts BMR using activity level to get daily calorie needs.
+        suggester = MealSuggester('diet_plan.csv')
+        plan = suggester.suggest_day_plan(tdee)
 
-    Args:
-        bmr (float): The BMR value
-        activity_level (str): 'low', 'medium', or 'high'
+        if not plan:
+            messagebox.showwarning("No Plan", "Sorry, we couldn't generate a meal plan with the available data.")
+            return
 
-    Returns:
-        float: Total calories needed per day
-    """
-    if activity_level == 'low':
-        return bmr * 1.2
-    elif activity_level == 'medium':
-        return bmr * 1.55
-    else:
-        return bmr * 1.9
-# meal_ideas.py
+        total_cals = sum(meal['Calories'] for meal in plan)
+        total_protein = sum(meal['Protein'] for meal in plan)
+        total_carbs = sum(meal['Carbs'] for meal in plan)
+        total_fat = sum(meal['Fat'] for meal in plan)
 
-def suggest_meals(calories):
-    """
-    Suggests simple meal ideas based on calorie target.
+        result_text.delete('1.0', tk.END)
+        result_text.insert(tk.END, f" Your estimated daily calorie goal is: {int(tdee)} calories\n\n")
+        result_text.insert(tk.END, f" Here's a meal plan totaling ~{int(total_cals)} calories:\n\n")
+        for meal in plan:
+            result_text.insert(tk.END, f"- {meal['Meal']} ({meal['Category']}) — {meal['Calories']} cal | "
+                                       f"Protein: {meal['Protein']}g | Carbs: {meal['Carbs']}g | Fat: {meal['Fat']}g\n")
 
-    Args:
-        calories (int): The user's calorie goal for the day
+        result_text.insert(tk.END, f"\n Total Macros — Protein: {int(total_protein)}g | "
+                                   f"Carbs: {int(total_carbs)}g | Fat: {int(total_fat)}g\n")
 
-    Returns:
-        list: A list of 3 meals as examples
-    """
-    
-# main.py
+        output_data = {
+            "calorie_goal": int(tdee),
+            "total_calories": int(total_cals),
+            "total_protein": int(total_protein),
+            "total_carbs": int(total_carbs),
+            "total_fat": int(total_fat),
+            "meals": plan
+        }
 
-from calorie_calc import calculate_bmr, calculate_tdee
-from meal_ideas import suggest_meals
+        filename = f"meal_plan_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        with open(filename, 'w', encoding='utf-8') as f:
+            json.dump(output_data, f, indent=4)
 
-def run_app():
-    """
-    Main function to run the SmartCal app.
-    Collects user info, calculates calorie needs, and gives meals.
-    """
-    print("Welcome to SmartCal!")
+        result_text.insert(tk.END, f"\n Meal plan saved to: {filename}")
 
-    # Get basic info
-    weight = float(input("Enter your weight (kg): "))
-    height = float(input("Enter your height (cm): "))
-    age = int(input("Enter your age: "))
-    sex = input("Enter your sex (male/female): ").lower()
-    activity = input("Activity level (low/medium/high): ").lower()
+    except Exception as e:
+        messagebox.showerror("Error", f"Something went wrong:\n{e}")
 
-    # Calculate BMR and TDEE
-    bmr = calculate_bmr(weight, height, age, sex)
-    tdee = calculate_tdee(bmr, activity)
+# GUI 
+window = tk.Tk()
+window.title("SMARTCal - Meal Planner")
+window.geometry("750x700")
 
-    print(f"\nYour daily calorie goal is around: {int(tdee)} calories")
+font_label = ("Arial", 12)
+font_input = ("Arial", 12)
+font_title = ("Arial", 16, "bold")
 
-    # Suggest meals
-    meals = suggest_meals(tdee)
-    print("\nHere are some meal ideas for you:")
-    for meal in meals:
-        print(f"- {meal}")
+# Title
+tk.Label(window, text="SMARTCal", font=font_title).pack(pady=15)
 
-if __name__ == "__main__":
-    run_app()
+# Weight
+tk.Label(window, text="Weight (kg):", font=font_label).pack(anchor="w", padx=20, pady=(10,0))
+entry_weight = tk.Entry(window, font=font_input)
+entry_weight.pack(fill="x", padx=20, pady=5)
+
+# Height
+tk.Label(window, text="Height (cm):", font=font_label).pack(anchor="w", padx=20, pady=(10,0))
+entry_height = tk.Entry(window, font=font_input)
+entry_height.pack(fill="x", padx=20, pady=5)
+
+# Age
+tk.Label(window, text="Age:", font=font_label).pack(anchor="w", padx=20, pady=(10,0))
+entry_age = tk.Entry(window, font=font_input)
+entry_age.pack(fill="x", padx=20, pady=5)
+
+# Sex
+tk.Label(window, text="Sex:", font=font_label).pack(anchor="w", padx=20, pady=(10,0))
+sex_var = tk.StringVar()
+sex_frame = tk.Frame(window)
+tk.Radiobutton(sex_frame, text="Male", variable=sex_var, value="male", font=font_input).pack(side="left", padx=15)
+tk.Radiobutton(sex_frame, text="Female", variable=sex_var, value="female", font=font_input).pack(side="left", padx=15)
+sex_frame.pack(anchor="w", padx=20, pady=5)
+
+# Activity Level
+tk.Label(window, text="Activity Level:", font=font_label).pack(anchor="w", padx=20, pady=(10,0))
+activity_var = tk.StringVar()
+activity_combo = ttk.Combobox(window, textvariable=activity_var, font=font_input, state="readonly")
+activity_combo['values'] = ("low", "medium", "high")
+activity_combo.pack(fill="x", padx=20, pady=5)
+
+# button creating
+tk.Button(window, text="Generate Meal Plan", command=generate_plan,
+          font=font_input, bg="#007acc", fg="white", padx=15, pady=10).pack(pady=20)
+
+# Result 
+result_text = scrolledtext.ScrolledText(window, width=85, height=20, font=("Courier New", 11), wrap=tk.WORD)
+result_text.pack(padx=20, pady=10, fill="both", expand=True)
+
+window.mainloop()
